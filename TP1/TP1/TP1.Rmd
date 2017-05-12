@@ -1,0 +1,87 @@
+---
+title: "TP1-Sondage"
+author: "Thomas Laurent"
+date: "2017年4月10日"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Importation des donnees
+rec<-read.csv("rec99htegne.csv",sep=";")
+dim(rec)
+sum(rec$LOGVAC)
+var(rec$LOGVAC)
+
+#Tirage de l'echantillon
+library(sampling)
+#50 individus dans 554 individus (population)
+set.seed(123)
+si.rec<-srswor(50,554)
+nom<-rec$COMMUNE[si.rec==1][1:10]
+print(nom)
+
+#Estimateur de Horvitz-Thompson pour le total
+554*mean(rec$LOGVAC[which(si.rec==1)])
+
+#Autre methode
+set.seed(123)
+si.rec=srswor(50,554)
+pik.si=rep(50/554,50)
+si.Logvac=rec$LOGVAC[which(si.rec==1)]
+Logvac_si=HTestimator(si.Logvac,pik.si)
+Logvac_si
+
+#Estimation de la variance du total
+554^2*(1-50/554)*var(rec$LOGVAC[which(si.rec==1)])/50
+
+#Avec le package survey
+set.seed(1974)
+si.rec=srswor(50,554)
+library(survey)
+ech.si <- svydesign(id=~CODE_N, weights=rep(554/50,50),fpc=rep(50/554,50),
+data=rec[which(si.rec==1),])
+svytotal(~LOGVAC,ech.si)
+
+#Simulations
+
+nb.simul<-matrix(1:1000,1000,1)
+t.esti<-matrix(1,1000,1)
+for (i in 1:1000){
+s.rec<-srswor(50,554)
+t.esti[i]<-554*mean(rec$LOGVAC[which(s.rec==1)]) }
+hist(t.esti)
+
+logvac_si=mean(t.esti)
+var_si=var(t.esti)
+cv_si=sd(t.esti)/logvac_si
+
+plot(nb.simul,cumsum(t.esti)/nb.simul,type="l")
+lines(1:1000,rep(10768,1000),col="red")
+
+#Simulations avec le package survey
+nb.simul<-matrix(1:1000,1000,1); t.esti<-matrix(1,1000,1);
+ var.esti=matrix(1,1000,1)
+for (i in 1:1000)
+{ si.rec<-srswor(50,554)
+ech.si <- svydesign(id=~CODE_N, weights=rep(554/50,50),fpc=rep(50/554,50),
+data=rec[which(si.rec==1),])
+estimation=svytotal(~LOGVAC, ech.si)
+t.esti[i]<- estimation[1]
+var.esti[i]=SE(estimation)^2
+}
+
+si_total_simul=mean(t.esti)
+si_var_simul=var(t.esti)
+
+cv_simul=sqrt(var(t.esti))/si_total_simul
+print(cv_simul)
+
+hist(t.esti)
+plot(nb.simul,cumsum(var.esti)/nb.simul,type="l")
+lines(1:5000,rep(6167879,5000),col="red")
+```
+
